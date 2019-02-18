@@ -119,9 +119,8 @@ def run(af, gobgpd_addr, timeout, *network, **kw):
     except StopIteration:
       break
   destinations.sort(cmp=compare_destinations(af))
-  for paths in [ d.destination.paths for d in destinations ]:
-    for p in paths:
-      print_path(p)
+  for p in [ p for d in destinations for p in d.destination.paths ]:
+    print_path(p)
     
 def main():
   parser = argparse.ArgumentParser()
