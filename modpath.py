@@ -42,7 +42,7 @@ def invalidate(k, v):
   print("invalid {}: {}".format(k, v), file=sys.stderr)
   sys.exit(-1)
 
-def run(network, af, gobgpd_addr, source_asn, timeout, withdraw, **kw):
+def run(network, af, gobgpd_addr, timeout, withdraw, **kw):
   # family
   try:
     family = _AF_NAME[af]
@@ -117,6 +117,20 @@ def run(network, af, gobgpd_addr, source_asn, timeout, withdraw, **kw):
       
   channel = grpc.insecure_channel(gobgpd_addr + ":50051")
   stub = gobgp_pb2_grpc.GobgpApiStub(channel)
+
+  # get source_as from server's global config
+  try:
+    global_conf = stub.GetBgp(gobgp_pb2.GetBgpRequest(), timeout)
+    for c in global_conf.ListFields()[0]:
+      if c.__class__.__name__ == "Global":
+        for f in c.ListFields():
+          if f[0].__class__.__name__ == "FieldDescriptor" and f[0].name == "as":
+            source_asn = f[1]
+            break
+  except:
+    print("failed to get source_asn from server's global config.", file=sys.stderr)
+    source_asn = 0
+      
   res = getattr(stub, stub_method)(
           getattr(gobgp_pb2, stub_method + "Request")(
             table_type=gobgp_pb2.GLOBAL,
@@ -137,7 +151,6 @@ def main():
   parser.add_argument('network', action='store')
   parser.add_argument('-r', action='store', default="localhost", dest="gobgpd_addr", help="GoBGPd address (default: localhost)")
   parser.add_argument('-n', action='store', dest="nexthop", default="0.0.0.0", help="Next-hop (default: 0.0.0.0)")
-  parser.add_argument('-s', action='store', dest="source_asn", type=int, default=0, help="Source ASN (default: 0)")
   parser.add_argument('-t', action='store', dest="timeout", type=int, default=1, help="Timeout second (default: 1)")
   parser_afg = parser.add_mutually_exclusive_group()
   parser_afg.add_argument('-4', action='store_const', dest="af", const=4, help="Address-family ipv4-unicast (default)")
@@ -161,13 +174,13 @@ def main():
     withdraw = True
 
   pattrs = {k:v for k, v in argopts.__dict__.items()
-             if k not in ("network", "af", "gobgpd_addr", "source_asn", "timeout", "withdraw", "comms", )
+             if k not in ("network", "af", "gobgpd_addr", "timeout", "withdraw", "comms", )
                and v is not None
             }
   if getattr(argopts, "comms", None):
     pattrs['comms'] = ",".join(argopts.comms)
   
-  run(argopts.network, argopts.af or 4, argopts.gobgpd_addr, argopts.source_asn, argopts.timeout, withdraw, **pattrs)
+  run(argopts.network, argopts.af or 4, argopts.gobgpd_addr, argopts.timeout, withdraw, **pattrs)
 
 if __name__ == '__main__':
   main()
