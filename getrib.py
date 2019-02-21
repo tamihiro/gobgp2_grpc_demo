@@ -113,11 +113,8 @@ def run(af, gobgpd_addr, timeout, *network, **kw):
           timeout,
           )
   destinations = []
-  while True:
-    try:
-      destinations.append(res.next())
-    except StopIteration:
-      break
+  for d in res:
+    destinations.append(d)
   destinations.sort(cmp=compare_destinations(af))
   for p in [ p for d in destinations for p in d.destination.paths ]:
     print_path(p)
