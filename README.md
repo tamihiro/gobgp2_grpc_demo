@@ -18,7 +18,7 @@ python -m grpc_tools.protoc -I${PATH_API} --python_out=. --grpc_python_out=. ${P
 
 Originate 10.0.0.1/32 with the path-attribute origin igp (default), nexthop 192.0.2.1, and communities [65004:999, no-export]:
 ```
-$ python modpath.py 10.0.0.1/32 -n 192.0.2.1 -c 65004:999 no-export
+$ python modpath.py 10.0.0.1/32 add -n 192.0.2.1 -c 65004:999 no-export
 ```
 
 Search route in global RIB:
