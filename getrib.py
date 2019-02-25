@@ -33,8 +33,8 @@ def compare_destinations(af):
     net_a = afcls(a.destination.prefix)
     net_b = afcls(b.destination.prefix)
     if not net_a.network_address == net_b.network_address:
-      return int(net_a.network_address) - int(net_b.network_address)
-    return int(net_a.netmask) - int(net_b.netmask)
+      return int(int(net_a.network_address) > int(net_b.network_address))
+    return int(int(net_a.netmask) > int(net_b.netmask))
   return func
 
 def pb_msg_attrs(m):
@@ -64,7 +64,10 @@ def print_path(path):
               v = _ATTR_ORIGIN.get(getattr(pattr_obj, k, -1))
             elif k == "communities":
               # convert to a list of colon-delimited sets
-              v = [ "{}:{}".format(int("0xffff",16)&c>>16, int("0xffff",16)&c) for c in getattr(pattr_obj, k, []) ]              
+              v = [ "{}:{}".format(int("0xffff",16)&c>>16, int("0xffff",16)&c) for c in getattr(pattr_obj, k, []) ]
+            elif k == "nlris":
+              # supress output for now
+              continue
             else:
               # printing as is
               v = str(getattr(pattr_obj, k, "")).strip().replace("\n", ", ")                
@@ -112,9 +115,7 @@ def run(af, gobgpd_addr, timeout, *network, **kw):
             ),
           timeout,
           )
-  destinations = []
-  for d in res:
-    destinations.append(d)
+  destinations = [ d for d in res ]
   destinations.sort(cmp=compare_destinations(af))
   for p in [ p for d in destinations for p in d.destination.paths ]:
     print_path(p)
