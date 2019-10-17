@@ -66,14 +66,24 @@ def run(network, af, gobgpd_addr, timeout, withdraw, **kw):
   stub_method = withdraw and "DeletePath" or "AddPath"
   
   attributes = []
-  # nexthop
-  if kw.get('nexthop'):
-    nexthop = Any()
-    try:
-      nexthop.Pack(attribute_pb2.NextHopAttribute(next_hop=kw['nexthop']))
-    except:
-      invalidate("next-hop", kw['nexthop'])
-    attributes.append(nexthop)
+  if af == 4:
+    # nexthop
+    if kw.get('nexthop'):
+      nexthop = Any()
+      try:
+        nexthop.Pack(attribute_pb2.NextHopAttribute(next_hop=kw['nexthop']))
+      except:
+        invalidate("next-hop", kw['nexthop'])
+      attributes.append(nexthop)
+  else:
+    mp_nlri_attribute = Any()
+    nlris = [nlri]
+    # nexthop
+    next_hops = []
+    if kw.get('nexthop'):
+      next_hops.append(kw['nexthop'])
+    mp_nlri_attribute.Pack(attribute_pb2.MpReachNLRIAttribute(family=family,nlris=nlris,next_hops=next_hops))
+    attributes.append(mp_nlri_attribute)
   if not withdraw:
     # origin
     if kw.get('origin'):
