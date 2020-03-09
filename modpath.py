@@ -1,7 +1,9 @@
 #!-*- coding:utf-8 -*-
 
 from __future__ import print_function
+from __future__ import unicode_literals
 
+from builtins import str
 import grpc
 from google.protobuf.any_pb2 import Any
 import gobgp_pb2
@@ -53,7 +55,7 @@ def run(network, af, gobgpd_addr, timeout, withdraw, **kw):
   nlri = Any()
   try:
     prefix = network.split("/")[0]
-    getattr(ipaddress, 'IPv'+str(af)+'Address')(unicode(prefix))
+    getattr(ipaddress, 'IPv'+str(af)+'Address')(str(prefix))
     prefix_len = int(network.split("/")[1])
     nlri.Pack(attribute_pb2.IPAddressPrefix(
       prefix_len = prefix_len,
@@ -176,14 +178,14 @@ def main():
 
   try:
     socket.getaddrinfo(argopts.gobgpd_addr, 0)
-  except socket.gaierror, e:
+  except socket.gaierror as e:
     invalidate("host", argopts.gobgpd_addr)
 
   withdraw = False
   if argopts.subcommand == "delete":
     withdraw = True
 
-  pattrs = {k:v for k, v in argopts.__dict__.items()
+  pattrs = {k:v for k, v in list(argopts.__dict__.items())
              if k not in ("network", "af", "gobgpd_addr", "timeout", "withdraw", "comms", )
                and v is not None
             }

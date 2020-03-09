@@ -1,7 +1,9 @@
 #! -*- coding:utf-8 -*-
 
 from __future__ import print_function
+from __future__ import unicode_literals
 
+from builtins import str
 import grpc
 from google.protobuf.any_pb2 import Any
 import gobgp_pb2
@@ -10,6 +12,8 @@ import attribute_pb2
 import sys
 import socket
 import ipaddress
+import re
+from functools import cmp_to_key
 import argparse
 
 _AF_NAME = dict()
@@ -40,7 +44,11 @@ def compare_destinations(af):
 def pb_msg_attrs(m):
   # return list of attr names
   slice_ind = -1 * len('_FIELD_NUMBER')
-  return [ attr[:slice_ind].lower() for attr in dir(m) if attr.endswith('_FIELD_NUMBER') ]
+  attrs = [ attr[:slice_ind].lower() for attr in dir(m) if attr.endswith('_FIELD_NUMBER') ]
+  if attrs:
+    return attrs
+  # temporary workaround for an issue with python3 generated message classes that include no field number constants.
+  return [ attr for attr in dir(m) if re.match(r'[a-z]', attr) ]
 
 def print_path(path):
   # print each Path message, unpack its attributes if appropriate
@@ -64,7 +72,7 @@ def print_path(path):
               v = _ATTR_ORIGIN.get(getattr(pattr_obj, k, -1))
             elif k == "communities":
               # convert to a list of colon-delimited sets
-              v = [ "{}:{}".format(int("0xffff",16)&c>>16, int("0xffff",16)&c) for c in getattr(pattr_obj, k, []) ]
+              v = [ str("{}:{}".format(int("0xffff",16)&c>>16, int("0xffff",16)&c)) for c in getattr(pattr_obj, k, []) ]
             elif k == "nlris":
               # supress output for now
               continue
@@ -93,13 +101,13 @@ def run(af, gobgpd_addr, timeout, *network, **kw):
     table_type = _TT['out']
     name = kw["rib_out_neighbor"]
   else:
-    table_type = _TT['global']
-    name= None
+    table_type = _TT["global"]
+    name = None
   # prefixes
   prefixes = []
   for n in network:
     try:
-      getattr(ipaddress, 'IPv'+str(af)+'Network')(unicode(n))
+      getattr(ipaddress, 'IPv'+str(af)+'Network')(str(n))
       prefixes.append(gobgp_pb2.TableLookupPrefix(prefix=n))
     except:
       invalidate("prefix", n)
@@ -116,7 +124,8 @@ def run(af, gobgpd_addr, timeout, *network, **kw):
           timeout,
           )
   destinations = [ d for d in res ]
-  destinations.sort(cmp=compare_destinations(af))
+  cmp_func = compare_destinations(af)
+  destinations.sort(key=cmp_to_key(cmp_func))
   for p in [ p for d in destinations for p in d.destination.paths ]:
     print_path(p)
     
@@ -138,7 +147,7 @@ def main():
     for a in ['gobgpd_addr', 'rib_in_neighbor', 'rib_out_neighbor', ]:
       if getattr(argopts, a):
         socket.gethostbyname(getattr(argopts, a))
-  except socket.gaierror, e:
+  except socket.gaierror as e:
     invalidate("host", getattr(argopts,a))
 
   run(argopts.af or 4,
