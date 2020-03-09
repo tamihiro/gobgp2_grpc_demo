@@ -33,8 +33,8 @@ def compare_destinations(af):
     net_a = afcls(a.destination.prefix)
     net_b = afcls(b.destination.prefix)
     if not net_a.network_address == net_b.network_address:
-      return int(int(net_a.network_address) > int(net_b.network_address))
-    return int(int(net_a.netmask) > int(net_b.netmask))
+      return int(net_a.network_address) - int(net_b.network_address)
+    return int(net_a.netmask) - int(net_b.netmask)
   return func
 
 def pb_msg_attrs(m):
